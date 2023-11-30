@@ -1,8 +1,3 @@
-/*
- * mixed-example.cpp
- *
- */
-
 #include "Protocols/ProtocolSet.h"
 #include <numeric>
 #include <chrono>
