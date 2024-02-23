@@ -1,3 +1,8 @@
+/*
+ * mixed-example.cpp
+ *
+ */
+
 #include "Protocols/ProtocolSet.h"
 #include <numeric>
 #include <chrono>
@@ -14,8 +19,8 @@ void run(char** argv);
 
 int main(int argc, char** argv){
     // need player number and number of players
-    if (argc < 4){
-        cerr << "Usage: " << argv[0] << "<my number: 0/1/...> <total number of players> <sec param>" << endl;
+    if (argc != 5){
+        cerr << "Usage: " << argv[0] << "<my number: 0/1/...> <total number of players> <sec param> <num samples>" << endl;
         exit(1);
     }    
     // cout << "----------------    SEMI   SHARE    ----------------" << endl;
@@ -284,7 +289,7 @@ vector<T> FDL(int n_parties, int N, int d, double p, int num_iterations,
         k_vec.at(i) = protocol.finalize_mul();
     }
     update_time(start_time, total_time,"s, l and k vec: ");    
-    cout << "total time taken:   " << total_time.count() * 1e-3 << " ms" << std::endl;
+    cout << "Online time taken:   " << total_time.count() * 1e-3 << " ms" << std::endl;
     // cout << "average time taken: " << static_cast<double>(total_time.count())/num_iterations << "ms" << std::endl;
     // cout << "total time taken:   " << total_time.count() / 1000 << " s" << std::endl;
 
@@ -298,7 +303,7 @@ vector<T> FDL(int n_parties, int N, int d, double p, int num_iterations,
 template<class T>
 void run(char** argv)
 {
-    int NumberSamples = 1;
+    
     double p = 0.5;
     // int d = 32;
     // int LaplaceWidth = 32;
@@ -311,10 +316,11 @@ void run(char** argv)
     int my_number = atoi(argv[1]);
     int n_parties = atoi(argv[2]);
     int security_parameter   = atoi(argv[3]);
+    int NumberSamples = atoi(argv[4]);
     int port_base = 9999;
     
     OnlineOptions::singleton.bucket_size = 5;
-    OnlineOptions::singleton.batch_size = 64;
+    OnlineOptions::singleton.batch_size = (NumberSamples < 64) ? 64 : NumberSamples;
 
     Names N(my_number, n_parties, "localhost", port_base);
     CryptoPlayer P(N);
