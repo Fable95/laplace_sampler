@@ -1,8 +1,8 @@
 # laplace_sampler
 
-Repository together with anonymous PETS submission "Practical two-party computational differential
-privacy with active security"
+This repository contains the code for the publication: "Practical two-party computational differential privacy with active security"
 
+Find it on [eprint](https://eprint.iacr.org/2024/4)
 ## Installation of dependencies
 
 Setup repo by cloning the submodule and patching the updates.
