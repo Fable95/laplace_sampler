@@ -32,9 +32,9 @@ Go to ```MP-SPDZ/bin``` and find the executable ```sampler```. Execute the progr
 
 ```./sampler <index of party> <number of parties> <security param>```
 
-On two terminals with a $\kappa = 40$ this would look like:
+On two terminals with a $\kappa = 40$, two parties and 1 sample this would look like:
 
 ```
-./sampler 0 2 40
-./sampler 1 2 40
+./sampler 0 2 40 1
+./sampler 1 2 40 1
 ```
