@@ -19,6 +19,7 @@ sudo apt-get install automake build-essential clang cmake git libboost-dev libbo
 ```
 Run the following commands to setup the library:
 ```
+cd MP-SPDZ
 make clean-deps boost libote
 ```
 
