@@ -5,7 +5,11 @@ This repository contains the code for the publication: "Practical two-party comp
 Find it on [eprint](https://eprint.iacr.org/2024/4)
 ## Installation of dependencies
 
-Setup repo by cloning the submodule and patching the updates.
+Setup repo by cloning the submodule and its submodules: 
+
+```git submodule update --init --recursive```
+
+Then, patch the changes to MP-SPDZ:
 
 ```bash ./update_changes.sh```
 
