@@ -28,7 +28,11 @@ To compile the Laplace Sampler, go to ```MP-SPDZ``` directory and run: (num thre
 ```
 make sampler -j <number threads>
 ```
-Go to ```MP-SPDZ/bin``` and find the executable ```sampler```. Execute the program in two terminals:
+Go to ```MP-SPDZ/bin``` and generate the SSL keys for two parties:
+
+```bash ../Scripts/setup-ssl 2```
+
+next find the executable ```sampler```. Execute the program in two terminals:
 
 ```./sampler <index of party> <number of parties> <security param>```
 
