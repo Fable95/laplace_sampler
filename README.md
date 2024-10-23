@@ -11,7 +11,7 @@ Setup repo by cloning the submodule and its submodules:
 
 Then, patch the changes to MP-SPDZ:
 
-```bash ./update_changes.sh```
+```sh ./update_changes.sh```
 
 Install the requirements for [MP-SPDZ](https://github.com/data61/MP-SPDZ):
 ```
