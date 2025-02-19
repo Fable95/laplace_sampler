@@ -1,4 +1,3 @@
-
 include CONFIG
 
 MATH = $(patsubst %.cpp,%.o,$(wildcard Math/*.cpp))
@@ -7,7 +6,7 @@ TOOLS = $(patsubst %.cpp,%.o,$(wildcard Tools/*.cpp))
 
 NETWORK = $(patsubst %.cpp,%.o,$(wildcard Networking/*.cpp))
 
-PROCESSOR = $(patsubst %.cpp,%.o,$(wildcard Processor/*.cpp))
+PROCESSOR = $(patsubst %.cpp,%.o,$(wildcard Processor/*.cpp)) Protocols/ShamirOptions.o
 
 FHEOBJS = $(patsubst %.cpp,%.o,$(wildcard FHEOffline/*.cpp FHE/*.cpp)) Protocols/CowGearOptions.o
 
@@ -52,14 +51,14 @@ endif
 endif
 
 # used for dependency generation
-OBJS = $(patsubst %.cpp,%.o,$(wildcard */*.cpp)) $(STATIC_OTE)
+OBJS = $(patsubst %.cpp,%.o,$(wildcard */*.cpp */*/*.cpp)) $(STATIC_OTE)
 DEPS := $(wildcard */*.d */*/*.d)
 
 # never delete
 .SECONDARY: $(OBJS)
 
 
-all: arithmetic binary gen_input online offline externalIO bmr ecdsa
+all: arithmetic binary gen_input online offline externalIO bmr ecdsa export
 vm: arithmetic binary
 
 .PHONY: doc
@@ -92,7 +91,7 @@ externalIO: bankers-bonus-client.x
 
 bmr: bmr-program-party.x bmr-program-tparty.x
 
-real-bmr: $(patsubst Machines/%.cpp,%.x,$(wildcard Machines/*-bmr-party.cpp))
+real-bmr: $(patsubst Machines/BMR/%.cpp,%.x,$(wildcard Machines/BMR/*-bmr-party.cpp))
 
 yao: yao-party.x
 
@@ -116,7 +115,7 @@ mascot: mascot-party.x spdz2k mama-party.x
 ifeq ($(OS), Darwin)
 setup: mac-setup
 else
-setup: boost linux-machine-setup
+setup: maybe-boost linux-machine-setup
 endif
 
 tldr: setup
@@ -124,7 +123,7 @@ tldr: setup
 	mkdir Player-Data 2> /dev/null; true
 
 ifeq ($(ARM), 1)
-$(patsubst %.cpp,%.o,$(wildcard */*.cpp)): deps/simde/simde
+$(patsubst %.cpp,%.o,$(wildcard */*.cpp */*/*.cpp)): deps/simde/simde deps/sse2neon/sse2neon.h
 endif
 
 shamir: shamir-party.x malicious-shamir-party.x atlas-party.x galois-degree.x
@@ -147,6 +146,11 @@ $(FHEOFFLINE): $(FHEOBJS) $(SHAREDLIB)
 	$(CXX) $(CFLAGS) -shared -o $@ $^ $(LDLIBS)
 
 static/%.x: Machines/%.o $(LIBRELEASE) $(LIBSIMPLEOT) local/lib/libcryptoTools.a local/lib/liblibOTe.a
+	$(MAKE) static-dir
+	$(CXX) -o $@ $(CFLAGS) $^ -Wl,-Map=$<.map -Wl,-Bstatic -static-libgcc -static-libstdc++ $(LIBRELEASE) -llibOTe -lcryptoTools $(LIBSIMPLEOT) $(BOOST) $(LDLIBS) -Wl,-Bdynamic -ldl
+
+static/%.x: Machines/BMR/%.o $(LIBRELEASE) $(LIBSIMPLEOT) local/lib/libcryptoTools.a local/lib/liblibOTe.a
+	$(MAKE) static-dir
 	$(CXX) -o $@ $(CFLAGS) $^ -Wl,-Map=$<.map -Wl,-Bstatic -static-libgcc -static-libstdc++ $(LIBRELEASE) -llibOTe -lcryptoTools $(LIBSIMPLEOT) $(BOOST) $(LDLIBS) -Wl,-Bdynamic -ldl
 
 static/%.x: ECDSA/%.o ECDSA/P256Element.o $(VMOBJS) $(OT) $(LIBSIMPLEOT)
@@ -155,7 +159,18 @@ static/%.x: ECDSA/%.o ECDSA/P256Element.o $(VMOBJS) $(OT) $(LIBSIMPLEOT)
 static-dir:
 	@ mkdir static 2> /dev/null; true
 
-static-release: static-dir $(patsubst Machines/%.cpp, static/%.x, $(wildcard Machines/*-party.cpp)) static/emulate.x
+static-release: static-dir $(patsubst Machines/%.cpp, static/%.x, $(wildcard Machines/*-party.cpp))  $(patsubst Machines/BMR/%.cpp, static/%.x, $(wildcard Machines/BMR/*-party.cpp)) static/emulate.x
+
+EXPORT_VM = $(patsubst %.cpp, %.o, $(wildcard Machines/export-*.cpp))
+.SECONDARY: $(EXPORT_VM)
+
+export-trunc.x: Machines/export-ring.o
+export-sort.x: Machines/export-ring.o
+export-msort.x: Machines/export-ring.o
+export-a2b.x: GC/AtlasSecret.o Machines/SPDZ.o Machines/SPDZ2^64+64.o $(GC_SEMI) $(TINIER) $(EXPORT_VM) GC/Rep4Secret.o GC/Rep4Prep.o $(FHEOFFLINE)
+export-b2a.x: Machines/export-ring.o
+
+export: $(patsubst Utils/%.cpp, %.x, $(wildcard Utils/export*.cpp))
 
 Fake-ECDSA.x: ECDSA/Fake-ECDSA.cpp ECDSA/P256Element.o $(COMMON) Processor/PrepBase.o
 	$(CXX) -o $@ $^ $(CFLAGS) $(LDLIBS)
@@ -167,10 +182,10 @@ ot-offline.x: $(OT) $(LIBSIMPLEOT) Machines/TripleMachine.o
 
 gc-emulate.x: $(VM) GC/FakeSecret.o GC/square64.o
 
-bmr-%.x: $(BMR) $(VM) Machines/bmr-%.cpp $(LIBSIMPLEOT)
+bmr-%.x: $(BMR) $(VM) Machines/BMR/bmr-%.cpp $(LIBSIMPLEOT)
 	$(CXX) -o $@ $(CFLAGS) $^ $(BOOST) $(LDLIBS)
 
-%-bmr-party.x: Machines/%-bmr-party.o $(BMR) $(SHAREDLIB) $(MINI_OT)
+%-bmr-party.x: Machines/BMR/%-bmr-party.o $(BMR) $(SHAREDLIB) $(MINI_OT)
 	$(CXX) -o $@ $(CFLAGS) $^ $(BOOST) $(LDLIBS)
 
 bmr-clean:
@@ -211,7 +226,7 @@ Fake-Offline.x: Utils/Fake-Offline.o $(VM)
 %-ecdsa-party.x: ECDSA/%-ecdsa-party.o ECDSA/P256Element.o $(VM)
 	$(CXX) -o $@ $(CFLAGS) $^ $(LDLIBS)
 
-mixedCurcuitSampling.x: SecureSampler/mixedCurcuitSampling.o $(COMMON)
+mixedCircuitSampling.x: SecureSampler/mixedCircuitSampling.o $(COMMON)
 	$(CXX) -o $@ $(CFLAGS) $^ $(LDLIBS)
 
 replicated-bin-party.x: GC/square64.o
@@ -249,18 +264,19 @@ mama-party.x: $(TINIER)
 ps-rep-ring-party.x: Protocols/MalRepRingOptions.o
 malicious-rep-ring-party.x: Protocols/MalRepRingOptions.o
 sy-rep-ring-party.x: Protocols/MalRepRingOptions.o
-rep4-ring-party.x: GC/Rep4Secret.o
+rep4-ring-party.x: GC/Rep4Secret.o GC/Rep4Prep.o
 no-party.x: Protocols/ShareInterface.o
 semi-ecdsa-party.x: $(OT) $(LIBSIMPLEOT) $(GC_SEMI)
 mascot-ecdsa-party.x: $(OT) $(LIBSIMPLEOT)
+rep4-ecdsa-party.x: GC/Rep4Prep.o
 fake-spdz-ecdsa-party.x: $(OT) $(LIBSIMPLEOT)
 emulate.x: GC/FakeSecret.o
 semi-bmr-party.x: $(GC_SEMI) $(OT)
 real-bmr-party.x: $(OT)
 paper-example.x: $(VM) $(OT) $(FHEOFFLINE)
-binary-example.x: $(VM) $(OT) GC/PostSacriBin.o $(GC_SEMI) GC/AtlasSecret.o
-mixed-example.x: $(VM) $(OT) GC/PostSacriBin.o $(GC_SEMI) GC/AtlasSecret.o Machines/Tinier.o
-mixedCurcuitSampling.x: $(VM) $(OT) GC/PostSacriBin.o $(GC_SEMI) GC/AtlasSecret.o Machines/Tinier.o
+binary-example.x: $(VM) $(OT) GC/PostSacriBin.o $(GC_SEMI) GC/AtlasSecret.o GC/Rep4Prep.o
+mixed-example.x: $(VM) $(OT) GC/PostSacriBin.o $(GC_SEMI) GC/AtlasSecret.o GC/Rep4Prep.o Machines/Tinier.o
+mixedCircuitSampling.x: $(VM) $(OT) GC/PostSacriBin.o $(GC_SEMI) GC/AtlasSecret.o GC/Rep4Prep.o Machines/Tinier.o
 l2h-example.x: $(VM) $(OT) Machines/Tinier.o
 he-example.x: $(FHEOFFLINE)
 mascot-offline.x: $(VM) $(TINIER)
@@ -299,13 +315,17 @@ deps/SimplestOT_C/ref10/Makefile:
 
 .PHONY: Programs/Circuits
 Programs/Circuits:
-	git submodule update --init Programs/Circuits
+	git submodule update --init Programs/Circuits || git clone https://github.com/mkskeller/bristol-fashion Programs/Circuits
 
 deps/libOTe/libOTe:
 	git submodule update --init --recursive deps/libOTe || git clone --recurse-submodules https://github.com/mkskeller/softspoken-implementation deps/libOTe
 boost: deps/libOTe/libOTe
 	cd deps/libOTe; \
 	python3 build.py --setup --boost --install=$(CURDIR)/local
+maybe-boost: deps/libOTe/libOTe
+	cd `mktemp -d`; \
+	PATH="$(CURDIR)/local/bin:$(PATH)" cmake $(CURDIR)/deps/libOTe || \
+	{ cd -; make boost; }
 
 OTE_OPTS += -DENABLE_SOFTSPOKEN_OT=ON -DCMAKE_CXX_COMPILER=$(CXX) -DCMAKE_INSTALL_LIBDIR=lib
 
@@ -325,8 +345,8 @@ else
 OTE = $(STATIC_OTE)
 endif
 
-sampler: mixedCurcuitSampling.x
-	mv mixedCurcuitSampling.x bin/sampler
+sampler: mixedCircuitSampling.x
+	mv mixedCircuitSampling.x bin/sampler
 	
 
 libote:
@@ -341,11 +361,12 @@ OT/OTExtensionWithMatrix.o: $(OTE)
 endif
 
 local/lib/liblibOTe.a: deps/libOTe/libOTe
+	make maybe-boost; \
 	cd deps/libOTe; \
 	PATH="$(CURDIR)/local/bin:$(PATH)" python3 build.py --install=$(CURDIR)/local -- -DBUILD_SHARED_LIBS=0 $(OTE_OPTS) && \
 	touch ../../local/lib/liblibOTe.a
 
-$(SHARED_OTE): deps/libOTe/libOTe
+$(SHARED_OTE): deps/libOTe/libOTe maybe-boost
 	cd deps/libOTe; \
 	python3 build.py --install=$(CURDIR)/local -- -DBUILD_SHARED_LIBS=1 $(OTE_OPTS)
 
@@ -353,7 +374,7 @@ cmake:
 	wget https://github.com/Kitware/CMake/releases/download/v3.24.1/cmake-3.24.1.tar.gz
 	tar xzvf cmake-3.24.1.tar.gz
 	cd cmake-3.24.1; \
-	./bootstrap --parallel=8 --prefix=../local && make && make install
+	./bootstrap --parallel=8 --prefix=../local && make -j8 && make install
 
 mac-setup: mac-machine-setup
 	brew install openssl boost libsodium gmp yasm ntl cmake
@@ -364,8 +385,11 @@ mac-machine-setup:
 deps/simde/simde:
 	git submodule update --init deps/simde || git clone https://github.com/simd-everywhere/simde deps/simde
 
+deps/sse2neon/sse2neon.h:
+	git submodule update --init deps/sse2neon || git clone https://github.com/DLTcollab/sse2neon deps/sse2neon
+
 clean-deps:
-	-rm -rf local/lib/liblibOTe.* deps/libOTe/out deps/SimplestOT_C
+	-rm -rf local/lib/liblibOTe.* deps/libOTe/out deps/SimplestOT_C deps/SimpleOT
 
 clean: clean-deps
 	-rm -f */*.o *.o */*.d *.d *.x core.* *.a gmon.out */*/*.o static/*.x *.so

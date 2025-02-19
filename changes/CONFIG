@@ -69,11 +69,13 @@ CXX = g++
 # use CONFIG.mine to overwrite DIR settings
 -include CONFIG.mine
 
+AVX_SIMPLEOT := $(AVX_OT)
+
 ifeq ($(USE_GF2N_LONG),1)
 GF2N_LONG = -DUSE_GF2N_LONG
 endif
 
-ifeq ($(AVX_OT), 0)
+ifeq ($(AVX_SIMPLEOT), 0)
 CFLAGS += -DNO_AVX_OT
 endif
 
@@ -87,6 +89,7 @@ LDLIBS = -lgmpxx -lgmp -lsodium $(MY_LDLIBS)
 LDLIBS += $(BREW_LDLIBS)
 LDLIBS +=  -Wl,-rpath -Wl,$(CURDIR)/local/lib -L$(CURDIR)/local/lib
 LDLIBS += -lboost_system -lssl -lcrypto
+LDLIBS += -lboost_filesystem -lboost_iostreams
 
 CFLAGS += -I./local/include
 
@@ -105,7 +108,7 @@ else
 BOOST = -lboost_thread $(MY_BOOST)
 endif
 
-CFLAGS += $(ARCH) $(MY_CFLAGS) $(GDEBUG) -Wextra -Wall $(OPTIM) -I$(ROOT) -I$(ROOT)/deps -pthread $(PROF) $(DEBUG) $(MOD) $(GF2N_LONG) $(PREP_DIR) $(SSL_DIR) $(SECURE) -std=c++11 -Werror
+CFLAGS += $(ARCH) $(MY_CFLAGS) $(GDEBUG) -Wextra -Wall $(OPTIM) -I$(ROOT) -I$(ROOT)/deps -pthread $(PROF) $(DEBUG) $(MOD) $(GF2N_LONG) $(PREP_DIR) $(SSL_DIR) $(SECURE) -std=c++17 -Werror
 CFLAGS += $(BREW_CFLAGS)
 CPPFLAGS = $(CFLAGS)
 LD = $(CXX)

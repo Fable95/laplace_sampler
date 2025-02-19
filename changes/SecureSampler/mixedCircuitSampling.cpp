@@ -6,11 +6,7 @@
 #include "Protocols/ProtocolSet.h"
 #include <numeric>
 #include <chrono>
-#include "Math/gfp.hpp"
-#include "Machines/SPDZ.hpp"
-#include "Machines/SPDZ2k.hpp"
-#include "Machines/ShamirMachine.hpp"
-#include "Machines/Semi2k.hpp"
+#include "Machines/maximal.hpp"
 
 #define VERBOSE 1
 int dabits_count = 0;
@@ -190,22 +186,26 @@ vector<typename T::bit_type> approx_bernoulli(int n_parties, int N, int d, vecto
 
 
 template<class T>
-vector<T> transform_share(vector<typename T::bit_type>& bit_vector, MixedProtocolSet<T>& set, MixedProtocolSetup<T>& setup, Player& P, PointerVector<pair<T, typename T::bit_type>>& dabits){
+vector<T> transform_share(vector<typename T::bit_type>& bit_vector, MixedProtocolSet<T>& set, MixedProtocolSetup<T>& setup, Player& P, vector<pair<T, typename T::bit_type>>& dabits){
     auto& bit_output = set.binary.output;
     auto& prep = set.preprocessing;
     bool dabit_necessary = dabits.empty();
     int size = bit_vector.size();
     bit_output.init_open(P, size);
     pair<T, typename T::bit_type> dabit;
-    for (int i = 0; i < size; i++){
-        if(dabit_necessary){    
+
+    if(dabit_necessary){
+        for (int i = 0; i < size; i++){
             dabits.push_back({});
             dabit = dabits.back();
             prep.get_dabit(dabit.first, dabit.second);
             dabits_count++;
-        } else {
-            dabit = dabits.at(dabits.size() - size + i);
         }
+    }
+
+    for (int i = 0; i < size; i++){
+        
+        dabit = dabits.at(dabits.size() - i - 1);
         bit_output.prepare_open(typename T::bit_type::part_type(
                                 dabit.second.get_bit(0) + bit_vector.at(i).get_bit(0)));    
     }
@@ -213,7 +213,7 @@ vector<T> transform_share(vector<typename T::bit_type>& bit_vector, MixedProtoco
     vector<T> res(size);
     for (int i = 0; i < size; i++){ 
         typename T::clear masked = bit_output.finalize_open().get_bit(0);
-        auto mask = dabits.next().first;
+        auto mask = dabits.back().first;
         res.at(i) = (mask - mask * masked * 2 + T::constant(masked, P.my_num(), setup.get_mac_key()));
         dabits.pop_back();
     }   
@@ -234,7 +234,7 @@ void update_time(T& start, chrono::microseconds& total_time, string name){
 
 template<class T>
 vector<T> FDL(int n_parties, int N, int d, double p, int num_iterations,
-    MixedProtocolSet<T>& set, MixedProtocolSetup<T>& setup, Player& P, PointerVector<pair<T, typename T::bit_type>>& da_bits){
+    MixedProtocolSet<T>& set, MixedProtocolSetup<T>& setup, Player& P, vector<pair<T, typename T::bit_type>>& da_bits){
     SeededPRNG g;
     double p0 = (1.0 - p) / (1.0 + p);
     double p1 = 1.0 - p;
@@ -296,7 +296,7 @@ vector<T> FDL(int n_parties, int N, int d, double p, int num_iterations,
     // cout << "multiplication time: " << total_time.count() << "ms" << std::endl;
     // open_print_vector<T, decltype(set.output)>(s_vec, P, "s", set.output);
     // open_print_vector<T, decltype(set.output)>(l_vec, P, "l", set.output);
-    // open_print_vector<T, decltype(set.output)>(k_vec, P, "k", set.output);
+    open_print_vector<T, decltype(set.output)>(k_vec, P, "k", set.output);
     return k_vec;
 }
 
@@ -336,7 +336,8 @@ void run(char** argv)
     // Preprocessing
     set.preprocessing.buffer_triples();
     set.preprocessing.buffer_bits();
-    PointerVector<pair<T, typename T::bit_type>> dabits(NumberSamples*(security_parameter+1));
+    vector<pair<T, typename T::bit_type>> dabits(NumberSamples*(security_parameter+1));
+    // vector<pair<T, typename T::bit_type>> dabits(0);
     for (size_t i = 0; i < dabits.size(); i++){
         auto& dabit = dabits.at(i);
         set.preprocessing.get_dabit(dabit.first, dabit.second);
